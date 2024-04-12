@@ -1,25 +1,24 @@
 import pandas as pd
-import sklearn
+import random as r
 from sklearn.svm import SVC
 from sklearn import svm
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
+from ucimlrepo import fetch_ucirepo 
 
-DATA_PATH = "data\data.csv"
+def main():  
+    breast_cancer_wisconsin_diagnostic = fetch_ucirepo(id=17) 
+    
+    X = breast_cancer_wisconsin_diagnostic.data.features 
+    y = breast_cancer_wisconsin_diagnostic.data.targets 
 
-def main():
-    data = init_data(DATA_PATH)
-
-    X = data.drop(columns=['Diagnosis'])
-    y = data['Diagnosis']
-
-    score = predict_diagnosis(X, y)
-
-    print(score)
+    report = predict_diagnosis(X, y, showPredictions=True)
+    print(report)
 
 
-def predict_diagnosis(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=7)
+def predict_diagnosis(X, y, showPredictions):
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=r.randint(1, 100)) # trains on 80% of the data, tests 20%
     
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
@@ -29,8 +28,15 @@ def predict_diagnosis(X, y):
     clf.fit(X_train, y_train)
     pred_clf = clf.predict(X_test)
 
-    return sklearn.metrics.accuracy_score(y_test, pred_clf)
+    report = classification_report(y_test, pred_clf)
+    
+    if (showPredictions is False): 
+        return report
+        
+    for i in range(len(X_test)):
+        print(f"Sample {i + 1}: P: {pred_clf[i]}, A: {y_test.iloc[i]}")
 
+    return report
 
 def init_data(data):
     data = pd.read_csv(data)
