@@ -1,19 +1,17 @@
 import yfinance as yf
 
-class StockService:
-    def __init__(self):
-        pass
+Stocks = {
+    "MICROSOFT": "MSFT",
+    "GOOGLE": "GOOG",
+    "APPLE": "AAPL",
+}
 
-    @staticmethod
-    def fetch_stock_info(stock):
-        stock = yf.Ticker(stock)
-        print(stock.info)
+class Stock:
+    def __init__(self, stock):
+        self.stock = stock
 
-    def MFST(self):
-        return self.fetch_stock_info("MSFT")
-    
-    def AAPL(self):
-        return self.fetch_stock_info("AAPL")
-    
-    def GOOG(self):
-        return self.fetch_stock_info("GOOG")
+    def fetch_stock_history(self):
+        info = yf.Ticker(self.stock)
+        history = info.history(period="1mo")
+
+        return history

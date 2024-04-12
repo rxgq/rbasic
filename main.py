@@ -1,10 +1,11 @@
-from StockService import StockService
+from StockService import Stock, Stocks
+
 import yfinance as yf
 
 def main():
-    stock = StockService() 
-    stock.MFST()
+    stock = Stock(Stocks["MICROSOFT"])
+    stock.fetch_stock_history()
 
-
+    
 if __name__ == "__main__":
     main()
