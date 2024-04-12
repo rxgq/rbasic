@@ -1,8 +1,10 @@
-
+from StockService import StockService
+import yfinance as yf
 
 def main():
-    return
+    stock = StockService() 
+    stock.MFST()
 
 
-
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
