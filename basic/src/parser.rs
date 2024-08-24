@@ -11,7 +11,9 @@ pub enum Expr {
     Str(String),
     VarDec(String, Box<Expr>),
     Print(Box<Expr>),
-    Input(String, Box<Expr>)
+    Input(String, Box<Expr>),
+    If(Box<Expr>, Box<Expr>),
+    Assign(String, Box<Expr>)
 }
 
 pub struct Parser<'a> {
@@ -123,12 +125,33 @@ impl<'a> Parser<'a> {
         return left;
     }
 
+    fn parse_assign(&mut self) -> Expr {
+        let identifier = match &self.tokens[self.current] {
+            Token::Identifier(id) => id.clone(),
+            _ => panic!("Expected an identifier for variable declaration"),
+        };
+        self.advance();
+
+        self.expect(Token::RelOp("=".to_string()));
+        
+        let expr = self.parse_expr();
+
+        return Expr::Assign(identifier, Box::new(expr));
+    }
+
     fn parse_expr(&mut self) -> Expr {
         return self.parse_relational();
     }
 
-    fn parse_if_stmt(&mut self) -> Token {
-        
+    fn parse_if_stmt(&mut self) -> Expr {
+        self.expect(Token::Keyword("IF".to_string()));
+
+        let expr = self.parse_expr();
+        self.expect(Token::Keyword("THEN".to_string()));
+
+        let consequent = self.parse_stmt();
+
+        return Expr::If(Box::new(expr), Box::new(consequent));
     }
 
     fn parse_var_dec(&mut self) -> Expr {
@@ -168,16 +191,20 @@ impl<'a> Parser<'a> {
 
     fn parse_stmt(&mut self) -> Expr {
         match &self.tokens[self.current] {
-            Token::Keyword(word) => {
-                if word == "LET" {
-                    return self.parse_var_dec();
-                } else if word == "PRINT" {
-                    return self.parse_print();
-                } else if word == "INPUT" {
-                    return self.parse_input()
-                } else {
-                    panic!("Unknown keyword");
+            Token::Keyword(word) => match word.as_str() {
+                "LET" => self.parse_var_dec(),
+                "PRINT" => self.parse_print(),
+                "INPUT" => self.parse_input(),
+                "IF" => self.parse_if_stmt(),
+                _ => panic!("Unknown keyword"),
+            },
+            Token::Identifier(_) => {
+                if self.tokens.len() > self.current + 1 {
+                    if let Token::RelOp(op) = &self.tokens[self.current + 1] {
+                        if op == "=" { return self.parse_assign(); }
+                    }
                 }
+                self.parse_expr()
             },
             _ => self.parse_expr(),
         }

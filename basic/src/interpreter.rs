@@ -25,17 +25,23 @@ impl<'a> Interpreter<'a> {
 
     pub fn interpret(&mut self) {
         for expr in self.exprs {
-            match expr {
-                Expr::Bin(l, op, r) => { self.bin_expr(l, op, r); },
-                Expr::Rel(l, op, r) => { self.rel_expr(l, op, r); },
-                Expr::VarDec(id, expr) => { self.var_dec(id, expr) },
-                Expr::Print(expr) => { self.print(expr); },
-                Expr::Input(prompt, out) => { self.input(prompt, out)},
-                _ => break,
-            }
+            self.eval_stmt(expr);
         }
     }
 
+    fn eval_stmt(&mut self, expr: &Expr) {
+        match expr {
+            Expr::Print(ref expr) => self.print(expr),
+            Expr::Input(ref prompt, ref out) => self.input(prompt, out),
+            Expr::VarDec(ref id, ref expr) => self.var_dec(id, expr),
+            Expr::Assign(ref id, ref expr) => self.assign_expr(id, expr),
+            Expr::Bin(ref l, ref op, ref r) => { self.bin_expr(l, op, r); },
+            Expr::Rel(ref l, ref op, ref r) => { self.rel_expr(l, op, r); },
+            Expr::If(ref cond, ref cons) => self.if_stmt(cond, cons),
+            _ => { self.eval_expr(expr); },
+        }
+    }
+    
     fn eval_expr(&mut self, expr: &Expr) -> Value {
         match expr {
             Expr::Num(n) => Value::Integer(*n),
@@ -95,6 +101,28 @@ impl<'a> Interpreter<'a> {
             },
             _ => panic!("Invalid types for arithmetic operation"),
         }
+    }
+
+    fn if_stmt(&mut self, cond: &Box<Expr>, cons: &Box<Expr>) {
+        let condition = self.eval_expr(cond);
+
+        match condition {
+            Value::Bool(true) => {
+                self.eval_stmt(cons);
+            },
+            Value::Bool(false) => {},
+            _ => panic!("If statement must evaluate to a boolean")
+        }
+        
+    }
+
+    fn assign_expr(&mut self, id: &String, expr: &Box<Expr>) {
+        if !self.variables.contains_key(id) {
+            panic!("Cannot assign undefined variable");
+        }
+
+        let val = self.eval_expr(expr);
+        self.variables.insert(id.to_string(), val);
     }
 
     fn var_dec(&mut self, id: &String, expr: &Box<Expr>) {
