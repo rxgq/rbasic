@@ -1,10 +1,16 @@
+use core::panic;
+
 use crate::lexer::Token;
 
 #[derive(Debug)]
 pub enum Expr {
     Bin(Box<Expr>, Token, Box<Expr>),
     Num(i64),
-    Identifier(String)
+    Identifier(String),
+    Str(String),
+    VarDec(String, Box<Expr>),
+    Print(Box<Expr>),
+    Input(String, Box<Expr>)
 }
 
 pub struct Parser<'a> {
@@ -24,6 +30,16 @@ impl<'a> Parser<'a> {
         self.current += 1;
     }
 
+    fn expect(&mut self, expected: Token) {
+        let curr = &self.tokens[self.current];
+        
+        if curr == &expected {
+            self.advance();
+        } else {
+            panic!("Expected {:?}, got {:?}", expected, curr)
+        }
+    }
+
     fn parse_primary(&mut self) -> Expr {
         let curr: &Token = &self.tokens[self.current];
 
@@ -34,9 +50,13 @@ impl<'a> Parser<'a> {
             },
             Token::Identifier(id) => {
                 self.advance();
-                return Expr::Identifier(id.parse().unwrap());
+                return Expr::Identifier(id.clone());
             }
-            _ => panic!("Unexpected token in primary expression")
+            Token::Str(str) => {
+                self.advance();
+                return Expr::Str(str.clone());
+            }
+            _ => panic!("Unexpected token in primary expression {:?}", curr)
         }
     }
 
@@ -84,11 +104,63 @@ impl<'a> Parser<'a> {
         return self.parse_term();
     }
 
+    fn parse_var_dec(&mut self) -> Expr {
+        self.expect(Token::Keyword("LET".to_string()));
+    
+        let identifier = match &self.tokens[self.current] {
+            Token::Identifier(id) => id.clone(),
+            _ => panic!("Expected an identifier for variable declaration"),
+        };
+        self.advance();
+    
+        self.expect(Token::Op("=".to_string()));
+        let expr = self.parse_expr();
+        
+        Expr::VarDec(identifier, Box::new(expr))
+    }
+
+    fn parse_print(&mut self) -> Expr {
+        self.expect(Token::Keyword("PRINT".to_string()));
+    
+        let expr = self.parse_expr();
+        Expr::Print(Box::new(expr))
+    }
+    
+    fn parse_input(&mut self) -> Expr  {
+        self.expect(Token::Keyword("INPUT".to_string()));
+
+        if let Token::Str(s) = &self.tokens[self.current] {
+            self.advance();
+            let identifier = self.parse_primary();
+
+            return Expr::Input(s.clone(), Box::new(identifier));
+        }
+
+        panic!("Unexpected expression for input");
+    }
+
+    fn parse_stmt(&mut self) -> Expr {
+        match &self.tokens[self.current] {
+            Token::Keyword(word) => {
+                if word == "LET" {
+                    return self.parse_var_dec();
+                } else if word == "PRINT" {
+                    return self.parse_print();
+                } else if word == "INPUT" {
+                    return self.parse_input()
+                } else {
+                    panic!("Unknown keyword");
+                }
+            },
+            _ => self.parse_expr(),
+        }
+    }
+
     pub fn parse(&mut self) -> Vec<Expr> {
         let mut exprs = Vec::new();
 
         while self.current < self.tokens.len() {
-            exprs.push(self.parse_expr());
+            exprs.push(self.parse_stmt());
         }
 
         return exprs;

@@ -1,6 +1,6 @@
 use core::panic;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Number(String),
     Str(String),
@@ -67,7 +67,7 @@ impl Lexer {
         
         self.current += str.len() + 1;
 
-        let keywords = ["IF", "ELSEIF", "ELSE", "THEN", "PRINT", "AND", "OR", "NOT", "INPUT"];
+        let keywords = ["LET", "IF", "ELSEIF", "ELSE", "THEN", "PRINT", "AND", "OR", "NOT", "INPUT", "TRUE", "FALSE"];
         if keywords.contains(&str.to_uppercase().as_str()) {
             return Token::Keyword(str.to_uppercase());
         }
@@ -77,7 +77,7 @@ impl Lexer {
 
     pub fn operator(&mut self) -> Token {
         let ops = ["+", "-", "*", "/", "%", "=", "<", "<=", ">", ">="];
-        for op in ops {
+        for _ in ops {
             let single = self.current().expect("ERROR tokenizing operator").to_string();
             let mut double = single.clone();
 
