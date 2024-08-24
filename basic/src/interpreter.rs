@@ -6,6 +6,7 @@ use crate::{lexer::Token, parser::Expr};
 #[derive(Clone, Debug)]
 pub enum Value {
     Integer(i64),
+    Float(f64),
     String(String),
     Bool(bool),
 }
@@ -51,6 +52,7 @@ impl<'a> Interpreter<'a> {
             Expr::Str(s) => Value::String(s.to_string()),
             Expr::Bin(l, op, r) => self.bin_expr(l, op, r),
             Expr::Rel(l, op, r) => self.rel_expr(l, op, r),
+            Expr::Call(func, args) => self.call_stmt(func, args),
             Expr::Identifier(id) => self.variables.get(id).cloned().unwrap_or_else(|| panic!("Undefined variable: {}", id)),
             _ => panic!("Unknown expression in interpreter"),
         }
@@ -97,6 +99,7 @@ impl<'a> Interpreter<'a> {
                                 Value::Integer(lval / rval)
                             }
                         },
+                        "%" => Value::Integer(lval % rval),
                         _ => panic!("Unknown operator in binary expression")
                     },
                     _ => panic!(""),
@@ -151,19 +154,47 @@ impl<'a> Interpreter<'a> {
     }
 
     fn var_dec(&mut self, id: &String, expr: &Box<Expr>) {
-        let val = self.eval_expr(expr);
+        let val = match expr.as_ref() {
+            Expr::Call(func, args) => self.call_stmt(func, args),
+            _ => self.eval_expr(expr),
+        };
         self.variables.insert(id.to_string(), val);
     }
-
+    
     fn print(&mut self, expr: &Box<Expr>) {
         let result = self.eval_expr(expr);
         match result {
             Value::Integer(n) => println!("{}", n),
             Value::String(s) => println!("{}", s),
             Value::Bool(b) => println!("{}", b),
+            Value::Float(f) => println!("{}", f),
             _ => panic!("Invalid type for print")
         }
     }
+
+    fn call_stmt(&mut self, func_name: &String, args: &Vec<Expr>) -> Value {
+        match func_name.as_str() {
+            "SIN" => {
+                if args.len() != 1 {
+                    panic!("SIN function takes exactly one argument");
+                }
+    
+                let arg = &args[0];
+                let val = self.eval_expr(arg);
+    
+                match val {
+                    Value::Integer(n) => {
+                        let radians = (n as f64).to_radians();
+                        let result = f64::sin(radians);
+                        return Value::Float(result)
+                    }
+                    _ => panic!("SIN function expects an integer argument"),
+                }
+            }
+            _ => panic!("Undefined function: {}", func_name),
+        }
+    }
+    
 
     fn input(&mut self, prompt: &String, out: &Box<Expr>) {
         println!("{}", prompt);

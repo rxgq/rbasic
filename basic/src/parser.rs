@@ -21,6 +21,7 @@ pub enum Expr {
         step: Option<Box<Expr>>,
         body: Vec<Expr>,
     },
+    Call(String, Vec<Expr>),
 }
 
 pub struct Parser<'a> {
@@ -66,6 +67,9 @@ impl<'a> Parser<'a> {
                 self.advance();
                 return Expr::Str(str.clone());
             }
+            Token::BuiltIn(_) => {
+                return self.parse_call();
+            } 
             _ => panic!("Unexpected token in primary expression {:?}", curr)
         }
     }
@@ -77,7 +81,7 @@ impl<'a> Parser<'a> {
             let curr = &self.tokens[self.current];
 
             let op = match curr {
-                Token::BinOp(op) if op == "*" || op == "/" => op.clone(),
+                Token::BinOp(op) if op == "*" || op == "/" || op == "%" => op.clone(),
                 _ => break,
             };
 
@@ -239,6 +243,34 @@ impl<'a> Parser<'a> {
         panic!("Unexpected expression for input");
     }
 
+    fn parse_call(&mut self) -> Expr {
+        let func = match &self.tokens[self.current] {
+            Token::BuiltIn(id) => id.clone(),
+            _ => panic!("Expected function name, got {:?}", &self.tokens[self.current]),
+        };
+        self.advance();
+    
+        self.expect(Token::Punc("(".to_string()));
+        
+        let mut args = Vec::new();
+        while self.current < self.tokens.len() {
+            let arg = self.parse_expr();
+            args.push(arg);
+            
+            if matches!(self.tokens[self.current], Token::Punc(ref punc) if punc == &",".to_string()) {
+                self.advance();
+            } else if matches!(self.tokens[self.current], Token::Punc(ref punc) if punc == &")".to_string()) {
+                self.advance();
+                break;
+            } else {
+                panic!("Expected comma or closing parenthesis in function call");
+            }
+        }
+        
+        Expr::Call(func, args)
+    }
+    
+
     fn parse_stmt(&mut self) -> Expr {
         match &self.tokens[self.current] {
             Token::Keyword(word) => match word.as_str() {
@@ -249,6 +281,7 @@ impl<'a> Parser<'a> {
                 "FOR" => self.parse_for_loop(),
                 _ => panic!("Unknown keyword"),
             },
+            Token::BuiltIn(_) => self.parse_call(),
             Token::Identifier(_) => {
                 if self.tokens.len() > self.current + 1 {
                     if let Token::RelOp(op) = &self.tokens[self.current + 1] {

@@ -7,7 +7,9 @@ pub enum Token {
     Identifier(String),
     BinOp(String),
     RelOp(String),
-    Keyword(String)
+    Keyword(String),
+    BuiltIn(String),
+    Punc(String)
 }
 
 pub struct Lexer {
@@ -68,49 +70,60 @@ impl Lexer {
         
         self.current += str.len() + 1;
 
-        let keywords = ["LET", "IF", "ELSEIF", "ELSE", "THEN", "PRINT", "AND", "OR", "NOT", "INPUT", "TRUE", "FALSE", "FOR", "TO", "STEP", "NEXT"];
+        let keywords = [
+            "LET", "IF", "ELSEIF", "ELSE", "THEN", "PRINT", "AND", "OR", "NOT", "INPUT", "TRUE", "FALSE", "FOR", "TO", "STEP", "NEXT",
+        ];
+
+        let built_ins = [
+            "ABS", "ATN", "COS", "EXP", "INT", "LOG", "RND", "SIN", "SQR", "TAN"
+        ];
+
         if keywords.contains(&str.to_uppercase().as_str()) {
             return Token::Keyword(str.to_uppercase());
+        }
+
+        if built_ins.contains(&str.to_uppercase().as_str()) {
+            self.current -= 1;
+            return Token::BuiltIn(str.to_uppercase());
         }
 
         return Token::Identifier(str);
     }
 
     pub fn operator(&mut self) -> Token {
-        let ops = ["+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "!=", "<>"];
-        for _ in ops {
-            let single = self.current().expect("ERROR tokenizing operator").to_string();
-            let mut double = single.clone();
-
-            if let Some(next) = self.source.chars().nth(self.current + 1) {
-                double.push(next);
-            }
-
-            if ops.contains(&double.as_str()) {
-                self.current += 2;
-
-                if "><=!".contains(&single.as_str()) {
-                    return Token::RelOp(double);
-                }
-
-                return Token::BinOp(double);
-            }
-
-            if ops.contains(&single.as_str()) {
-                self.current += 1;
-
-                if "><=!".contains(&single.as_str()) {
-                    return Token::RelOp(single);
-                }
-
-                return Token::BinOp(single);
-            }
-
-            panic!("Unexpected operator");
+        let single = self.current().expect("ERROR tokenizing operator").to_string();
+    
+        if "(),".contains(single.as_str()) {
+            self.advance();
+            return Token::Punc(single);
         }
-
-        return Token::BinOp(String::new());
+    
+        let ops = ["+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "!=", "<>"];
+        let mut double = single.clone();
+    
+        if let Some(next) = self.source.chars().nth(self.current + 1) {
+            double.push(next);
+        }
+    
+        if ops.contains(&double.as_str()) {
+            self.current += 2;
+            if "><=!".contains(&single.as_str()) {
+                return Token::RelOp(double);
+            }
+            return Token::BinOp(double);
+        }
+    
+        if ops.contains(&single.as_str()) {
+            self.advance();
+            if "><=!".contains(&single.as_str()) {
+                return Token::RelOp(single);
+            }
+            return Token::BinOp(single);
+        }
+    
+        panic!("Unexpected operator");
     }
+    
 
     pub fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens = Vec::new();
@@ -124,7 +137,7 @@ impl Lexer {
                 tokens.push(self.string());
             } else if c.is_alphabetic() {
                 tokens.push(self.identifier());
-            } else if "+-*/=<>^%".contains(c) {
+            } else if "+-*/=<>^%()".contains(c) {
                 tokens.push(self.operator());
             } else { 
                 self. advance();
