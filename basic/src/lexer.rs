@@ -5,7 +5,8 @@ pub enum Token {
     Number(String),
     Str(String),
     Identifier(String),
-    Op(String),
+    BinOp(String),
+    RelOp(String),
     Keyword(String)
 }
 
@@ -76,7 +77,7 @@ impl Lexer {
     }
 
     pub fn operator(&mut self) -> Token {
-        let ops = ["+", "-", "*", "/", "%", "=", "<", "<=", ">", ">="];
+        let ops = ["+", "-", "*", "/", "%", "=", "<", "<=", ">", ">=", "!=", "<>"];
         for _ in ops {
             let single = self.current().expect("ERROR tokenizing operator").to_string();
             let mut double = single.clone();
@@ -87,18 +88,28 @@ impl Lexer {
 
             if ops.contains(&double.as_str()) {
                 self.current += 2;
-                return Token::Op(double);
+
+                if "><=!".contains(&single.as_str()) {
+                    return Token::RelOp(double);
+                }
+
+                return Token::BinOp(double);
             }
 
             if ops.contains(&single.as_str()) {
                 self.current += 1;
-                return Token::Op(single);
+
+                if "><=!".contains(&single.as_str()) {
+                    return Token::RelOp(single);
+                }
+
+                return Token::BinOp(single);
             }
 
             panic!("Unexpected operator");
         }
 
-        return Token::Op(String::new());
+        return Token::BinOp(String::new());
     }
 
     pub fn tokenize(&mut self) -> Vec<Token> {

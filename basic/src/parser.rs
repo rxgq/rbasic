@@ -5,6 +5,7 @@ use crate::lexer::Token;
 #[derive(Debug)]
 pub enum Expr {
     Bin(Box<Expr>, Token, Box<Expr>),
+    Rel(Box<Expr>, Token, Box<Expr>),
     Num(i64),
     Identifier(String),
     Str(String),
@@ -67,14 +68,14 @@ impl<'a> Parser<'a> {
             let curr = &self.tokens[self.current];
 
             let op = match curr {
-                Token::Op(op) if op == "*" || op == "/" => op.clone(),
+                Token::BinOp(op) if op == "*" || op == "/" => op.clone(),
                 _ => break,
             };
 
             self.advance();
             let right = self.parse_primary();
 
-            left = Expr::Bin(Box::new(left), Token::Op(op), Box::new(right))
+            left = Expr::Bin(Box::new(left), Token::BinOp(op), Box::new(right))
         }
 
         return left;
@@ -87,21 +88,47 @@ impl<'a> Parser<'a> {
             let curr = &self.tokens[self.current];
 
             let op = match curr {
-                Token::Op(op) if op == "+" || op == "-" => op.clone(),
+                Token::BinOp(op) if op == "+" || op == "-" => op.clone(),
                 _ => break,
             };
 
             self.advance();
             let right = self.parse_factor();
 
-            left = Expr::Bin(Box::new(left), Token::Op(op), Box::new(right))
+            left = Expr::Bin(Box::new(left), Token::BinOp(op), Box::new(right))
+        }
+
+        return left;
+    }
+    
+    fn parse_relational(&mut self) -> Expr {
+        let mut left = self.parse_term();
+
+        while self.current < self.tokens.len() {
+            let curr = &self.tokens[self.current];
+
+            let op = match curr {
+                Token::RelOp(op) if op == ">" || op == ">=" || op == "<" || op == "<=" 
+                    || op == "=" || op == "<>" || op == "!=" => op.clone(),
+
+                _ => break,
+            };
+
+            self.advance();
+            let right = self.parse_term();
+
+            left = Expr::Rel(Box::new(left), Token::RelOp(op), Box::new(right))
         }
 
         return left;
     }
 
     fn parse_expr(&mut self) -> Expr {
-        return self.parse_term();
+        return self.parse_relational();
+    }
+
+    fn parse_if_stmt(&mut self) -> Token {
+        
     }
 
     fn parse_var_dec(&mut self) -> Expr {
@@ -113,7 +140,7 @@ impl<'a> Parser<'a> {
         };
         self.advance();
     
-        self.expect(Token::Op("=".to_string()));
+        self.expect(Token::RelOp("=".to_string()));
         let expr = self.parse_expr();
         
         Expr::VarDec(identifier, Box::new(expr))

@@ -7,6 +7,7 @@ use crate::{lexer::Token, parser::Expr};
 pub enum Value {
     Integer(i64),
     String(String),
+    Bool(bool),
 }
 
 pub struct Interpreter<'a> {
@@ -25,9 +26,8 @@ impl<'a> Interpreter<'a> {
     pub fn interpret(&mut self) {
         for expr in self.exprs {
             match expr {
-                Expr::Bin(l, op, r) => {
-                    self.bin_expr(l, op, r);
-                },
+                Expr::Bin(l, op, r) => { self.bin_expr(l, op, r); },
+                Expr::Rel(l, op, r) => { self.rel_expr(l, op, r); },
                 Expr::VarDec(id, expr) => { self.var_dec(id, expr) },
                 Expr::Print(expr) => { self.print(expr); },
                 Expr::Input(prompt, out) => { self.input(prompt, out)},
@@ -39,9 +39,34 @@ impl<'a> Interpreter<'a> {
     fn eval_expr(&mut self, expr: &Expr) -> Value {
         match expr {
             Expr::Num(n) => Value::Integer(*n),
+            Expr::Str(s) => Value::String(s.to_string()),
             Expr::Bin(l, op, r) => self.bin_expr(l, op, r),
+            Expr::Rel(l, op, r) => self.rel_expr(l, op, r),
             Expr::Identifier(id) => self.variables.get(id).cloned().unwrap_or_else(|| panic!("Undefined variable: {}", id)),
             _ => panic!("Unknown expression in interpreter"),
+        }
+    }
+
+    fn rel_expr(&mut self, left: &Box<Expr>, op: &Token, right: &Box<Expr>) -> Value {
+        let lval = self.eval_expr(left);
+        let rval = self.eval_expr(right);
+
+        match (lval, rval) {
+            (Value::Integer(lval), Value::Integer(rval)) => {
+                match op {
+                    Token::RelOp(op_str) => match op_str.as_str() {
+                        ">" => Value::Bool(lval > rval),
+                        "<" => Value::Bool(lval < rval),
+                        "<=" => Value::Bool(lval <= rval),
+                        ">=" => Value::Bool(lval >= rval),
+                        "=" => Value::Bool(lval == rval),
+                        "<>" => Value::Bool(lval != rval),
+                        _ => panic!(""),
+                    },
+                    _ => panic!("Invalid expression for relational comparison"),
+                }
+            },
+            _ => panic!("Invalid type for relational comparison"),
         }
     }
 
@@ -52,7 +77,7 @@ impl<'a> Interpreter<'a> {
         match (lval, rval) {
             (Value::Integer(lval), Value::Integer(rval)) => {
                 match op {
-                    Token::Op(op_str) => match op_str.as_str() {
+                    Token::BinOp(op_str) => match op_str.as_str() {
                         "+" => Value::Integer(lval + rval),
                         "-" => Value::Integer(lval - rval),
                         "*" => Value::Integer(lval * rval),
@@ -68,7 +93,7 @@ impl<'a> Interpreter<'a> {
                     _ => panic!(""),
                 }
             },
-            _ => panic!("Invalid types for binary operation"),
+            _ => panic!("Invalid types for arithmetic operation"),
         }
     }
 
@@ -82,6 +107,8 @@ impl<'a> Interpreter<'a> {
         match result {
             Value::Integer(n) => println!("{}", n),
             Value::String(s) => println!("{}", s),
+            Value::Bool(b) => println!("{}", b),
+            _ => panic!("Invalid type for print")
         }
     }
 
@@ -90,7 +117,6 @@ impl<'a> Interpreter<'a> {
 
         let mut input = String::new();
         io::stdin().read_line(&mut input).expect("Failed to read line");
-
         let input = input.trim();
 
         if let Expr::Identifier(id) = &**out {
