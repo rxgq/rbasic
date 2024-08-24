@@ -1,0 +1,1 @@
+C:\Users\rxgqq\projects\basic\basic\target\debug\basic.exe: C:\Users\rxgqq\projects\basic\basic\src\lexer.rs C:\Users\rxgqq\projects\basic\basic\src\main.rs C:\Users\rxgqq\projects\basic\basic\src\parser.rs
