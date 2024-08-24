@@ -68,7 +68,7 @@ impl Lexer {
         
         self.current += str.len() + 1;
 
-        let keywords = ["LET", "IF", "ELSEIF", "ELSE", "THEN", "PRINT", "AND", "OR", "NOT", "INPUT", "TRUE", "FALSE"];
+        let keywords = ["LET", "IF", "ELSEIF", "ELSE", "THEN", "PRINT", "AND", "OR", "NOT", "INPUT", "TRUE", "FALSE", "FOR", "TO", "STEP", "NEXT"];
         if keywords.contains(&str.to_uppercase().as_str()) {
             return Token::Keyword(str.to_uppercase());
         }

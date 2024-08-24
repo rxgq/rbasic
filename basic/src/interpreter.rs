@@ -38,6 +38,9 @@ impl<'a> Interpreter<'a> {
             Expr::Bin(ref l, ref op, ref r) => { self.bin_expr(l, op, r); },
             Expr::Rel(ref l, ref op, ref r) => { self.rel_expr(l, op, r); },
             Expr::If(ref cond, ref cons) => self.if_stmt(cond, cons),
+            Expr::For { ref variable, ref start, ref end, ref step, ref body } => {
+                self.for_loop(variable, start, end, step.as_deref(), body)
+            },
             _ => { self.eval_expr(expr); },
         }
     }
@@ -100,6 +103,28 @@ impl<'a> Interpreter<'a> {
                 }
             },
             _ => panic!("Invalid types for arithmetic operation"),
+        }
+    }
+
+    fn for_loop(&mut self, variable: &String, start: &Box<Expr>, end: &Box<Expr>, step: Option<&Expr>, body: &[Expr]) {
+        let mut start_val = if let Value::Integer(v) = self.eval_expr(start) { v } else { panic!("For loop start must be an integer"); };
+        let end_val = if let Value::Integer(v) = self.eval_expr(end) { v } else { panic!("For loop end must be an integer"); };
+        let step_val = step.map_or(1, |step_expr| {
+            if let Value::Integer(v) = self.eval_expr(step_expr) {
+                v
+            } else {
+                panic!("For loop step must be an integer")
+            }
+        });
+
+        self.variables.insert(variable.clone(), Value::Integer(start_val));
+        while (step_val > 0 && start_val <= end_val) || (step_val < 0 && start_val >= end_val) {
+            for stmt in body {
+                self.eval_stmt(stmt);
+            }
+
+            start_val += step_val;
+            self.variables.insert(variable.clone(), Value::Integer(start_val));
         }
     }
 

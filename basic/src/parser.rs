@@ -13,7 +13,14 @@ pub enum Expr {
     Print(Box<Expr>),
     Input(String, Box<Expr>),
     If(Box<Expr>, Box<Expr>),
-    Assign(String, Box<Expr>)
+    Assign(String, Box<Expr>),
+    For {
+        variable: String,
+        start: Box<Expr>,
+        end: Box<Expr>,
+        step: Option<Box<Expr>>,
+        body: Vec<Expr>,
+    },
 }
 
 pub struct Parser<'a> {
@@ -143,6 +150,49 @@ impl<'a> Parser<'a> {
         return self.parse_relational();
     }
 
+    fn parse_for_loop(&mut self) -> Expr {
+        self.expect(Token::Keyword("FOR".to_string()));
+
+        let variable = match &self.tokens[self.current] {
+            Token::Identifier(id) => id.clone(),
+            _ => panic!("Expected an identifier for variable declaration"),
+        };
+        self.advance();
+
+        self.expect(Token::RelOp("=".to_string()));
+        
+        let start = self.parse_expr();
+
+        self.expect(Token::Keyword("TO".to_string()));
+        let end = self.parse_expr();
+
+        let step = if self.current < self.tokens.len() {
+            if let Token::Keyword(keyword) = &self.tokens[self.current] {
+                if keyword == "STEP" {
+                    self.advance();
+                    let step = self.parse_expr();
+                    Some(Box::new(step))
+                } else { None }
+            } else { None }
+        } else { None };
+
+        let mut body = Vec::new();
+        while self.current < self.tokens.len() {
+            match &self.tokens[self.current] {
+                Token::Keyword(word) if word == "NEXT" => {
+                    self.advance();
+                    self.expect(Token::Identifier(variable.clone()));
+                },
+                _ => { body.push(self.parse_stmt()); }
+            }
+        }
+
+        Expr::For {
+            variable, start: Box::new(start), end: Box::new(end),
+            step, body
+        }
+    }
+
     fn parse_if_stmt(&mut self) -> Expr {
         self.expect(Token::Keyword("IF".to_string()));
 
@@ -196,6 +246,7 @@ impl<'a> Parser<'a> {
                 "PRINT" => self.parse_print(),
                 "INPUT" => self.parse_input(),
                 "IF" => self.parse_if_stmt(),
+                "FOR" => self.parse_for_loop(),
                 _ => panic!("Unknown keyword"),
             },
             Token::Identifier(_) => {

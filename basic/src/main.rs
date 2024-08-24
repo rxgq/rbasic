@@ -7,9 +7,9 @@ fn main() {
     
     let mut lexer = lexer::Lexer::new(source);
     let tokens = lexer.tokenize();
-    for token in &tokens {
-        println!("{:?}", token);
-    }
+    // for token in &tokens {
+    //     println!("{:?}", token);
+    // }
 
     let mut parser = parser::Parser::new(&tokens);
     let exprs = parser.parse();
